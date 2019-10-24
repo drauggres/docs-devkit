@@ -1006,6 +1006,10 @@ formats.forEach(function (format) {
 			templateStr = fs.readFileSync(pathMod.join(templatePath, 'changes.ejs'), 'utf8');
 			render = ejs.render(templateStr, { data: exportData, filename: 'changes.ejs', assert: common.assertObjectKey });
 			break;
+		case 'gcexterns' :
+			render = exportData;
+			output += 'titanium.externs.js';
+			break;
 		case 'html':
 		case 'modulehtml':
 

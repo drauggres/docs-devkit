@@ -22,6 +22,7 @@ For a description of each option. run `docgen --help`.
 | --- | --- |
 | `addon` | |
 | `changes` | |
+| `gcexterns` | Google Closure externs file |
 | `html` | HTML files for the official docs at https://docs.appcelerator.com |
 | `jsca` | [JSCA](https://docs.appcelerator.com/platform/latest/#!/guide/JSCA_1.0_Specification) content assist metadata |
 | `jsduck` | https://github.com/senchalabs/jsduck |

@@ -55,6 +55,18 @@ exports.REGEXP_HTML_TAG = /<\/?[a-z]+[^>]*>/;
 exports.REGEXP_CHEVRON_LINK = /<([^>]+?)>/;
 exports.REGEXP_CHEVRON_LINKS = /(?!`)<[^>]+?>(?!`)/g;
 
+exports.RESERVED_KEYWORDS = [
+		// Reserved keywords as of ECMAScript 2015
+	'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
+	'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for',
+	'function', 'if', 'import', 'in', 'instanceof', 'new',  'return', 'super',
+	'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while','with',
+	'yield',
+    // Future reserved keywords
+	'enum', 'implements', 'interface', 'let', 'package', 'private',
+	'protected', 'public', 'static', 'await'
+];
+
 /**
  * Converts a Markdown string to HTML
  * @param {string} text markdown to convert to html
