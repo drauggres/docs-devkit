@@ -32,3 +32,4 @@ For a description of each option. run `docgen --help`.
 | `parity` | |
 | `solr` | Solr search index |
 | `typescript` | TypeScript type definition file |
+| `ts-declaration` | strict TypeScript type declaration file |
