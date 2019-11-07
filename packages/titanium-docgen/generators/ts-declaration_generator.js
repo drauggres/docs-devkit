@@ -257,7 +257,11 @@ class Block {
       const apiName = this.api.name;
       inner = excludesToString(padding, this.all_excludes['properties']) +
           properties.map(v => {
-            const result = `const ${v.name}: ${getType(v.type)};`;
+            let prefix = 'let';
+            if (v.permission === 'read-only') {
+              prefix = 'const';
+            }
+            const result = `${prefix} ${v.name}: ${getType(v.type)};`;
             if (v.name === 'R' && (apiName === 'Titanium.Android' || apiName === 'Titanium.App.Android')) {
               return `${padding}// Skip. Redeclare block-scoped variable.\n${padding}//${result}`;
             }
