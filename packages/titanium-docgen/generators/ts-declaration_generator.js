@@ -110,11 +110,16 @@ function formatRemoved(pad, methodOrProperty, comment) {
       `${pad}${comment ? '// ' : ''}${methodOrProperty.name}: never;`
 }
 
-function propertyToString(pad, property, allMethodsNames) {
+function propertyToString(pad, property, allMethodsNames, classOrInterface) {
   if (property.deprecated && property.deprecated.removed) {
     return formatRemoved(pad, property, allMethodsNames.includes(property.name));
   }
-  return `${pad}${property.permission === 'read-only' ? 'readonly ': ''}${property.name}: ${getType(property.type)};`
+  let opt = false;
+  if (classOrInterface === 'interface') {
+    opt = true;
+  }
+  return `${pad}${property.permission === 'read-only' ? 'readonly ': ''}${property.name}${
+    opt ? '?' : ''}: ${getType(property.type)};`
 }
 
 function methodToString(pad, method, allPropertiesNames, eventsEnumName, thisName) {
@@ -207,11 +212,22 @@ class Block {
         }
       }
     }
+    let dec = '';
+    let classOrInterface = 'class';
+    if (this._inGlobal) {
+      dec = 'declare ';
+      if (knownInterfaces.includes(this._baseName)) {
+        classOrInterface = 'interface';
+      }
+      if (this.api.__subtype === 'pseudo' && !this.api.__creatable) {
+        classOrInterface = 'interface';
+      }
+    }
 
     if (properties.length) {
       inner += `${padding}// ${this.api.name} properties\n`;
       inner += excludesToString(padding, this.all_excludes['properties']);
-      inner += properties.map(v => propertyToString(padding, v, allMethodsNames)).join('\n') + '\n';
+      inner += properties.map(v => propertyToString(padding, v, allMethodsNames, classOrInterface)).join('\n') + '\n';
     }
     if (methods.length) {
       inner += `${padding}// ${this.api.name} methods\n`;
@@ -222,14 +238,7 @@ class Block {
     if (WRITE_INHERITANCE_OF_CLASSES && this.api.extends) {
       ext = `extends ${this.api.extends} `;
     }
-    let dec = '';
-    let classOrInterface = 'class';
-    if (this._inGlobal) {
-      dec = 'declare ';
-      if (knownInterfaces.includes(this._baseName)) {
-        classOrInterface = 'interface';
-      }
-    }
+
     let result = `${this._padding}${dec}${classOrInterface} ${this._baseName} ${ext}{\n${inner}${this._padding}}\n`;
     if (eventsEnum) {
       result = eventsEnum + result;
