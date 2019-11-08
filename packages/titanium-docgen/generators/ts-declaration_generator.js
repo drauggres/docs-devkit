@@ -151,8 +151,8 @@ function methodArgumentsToString(parameters) {
     const name = getValidName(v.name);
     const type = getType(v.type);
     let optional = '';
-    if (type.indexOf('Dictionary') === 0 && keys.length === 1) {
-      optional = '?'
+    if (v.optional) {
+      optional = '?';
     }
     return `${name}${optional}: ${type}`;
   })
