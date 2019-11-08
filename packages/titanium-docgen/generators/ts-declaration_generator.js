@@ -122,10 +122,46 @@ function propertyToString(pad, property, allMethodsNames, classOrInterface) {
     opt ? '?' : ''}: ${getType(property.type)};`
 }
 
-function methodToString(pad, method, allPropertiesNames, eventsEnumName, thisName) {
+function methodOverloadsToString(pad, method, allPropertiesNames, eventsEnumName, thisName) {
   if (method.deprecated && method.deprecated.removed) {
     return formatRemoved(pad, method, allPropertiesNames.includes(method.name));
   }
+  const methods = [];
+  const parameters = method.parameters;
+  let modifiedArguments = false;
+  let result = '';
+  if (!parameters) {
+    methods.push(method);
+  } else {
+    const keys = Object.values(parameters);
+    if (!keys.length) {
+      methods.push(method);
+    } else {
+      let hasOptional = false;
+      let hasRequired = false;
+      keys.reverse().forEach(v => {
+        if (v.optional) {
+          if (hasRequired) {
+            modifiedArguments = true;
+            v.optional = false;
+          } else {
+            hasOptional = true;
+          }
+        } else {
+          hasRequired = true;
+        }
+      });
+      methods.push(method);
+    }
+  }
+  if (modifiedArguments) {
+    result += `//${pad}#Suspicious method arguments\n`;
+  }
+  result += methods.map(method => methodToString(pad, method, allPropertiesNames, eventsEnumName, thisName)).join('\n');
+  return result;
+}
+
+function methodToString(pad, method, allPropertiesNames, eventsEnumName, thisName) {
   if (GENERATE_TYPES_FOR_EVENTS && eventsEnumName) {
     if (method.name === 'addEventListener') {
       return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, callback: (this: ${thisName}, ...args: any[]) => any): void;`;
@@ -155,7 +191,7 @@ function methodArgumentsToString(parameters) {
       optional = '?';
     }
     return `${name}${optional}: ${type}`;
-  })
+  });
 }
 
 function methodResultToString(method) {
@@ -232,7 +268,7 @@ class Block {
     if (methods.length) {
       inner += `${padding}// ${this.api.name} methods\n`;
       inner += excludesToString(padding, this.all_excludes['methods']);
-      inner += methods.map(v => methodToString(padding, v, allPropertiesNames, eventsEnumName, this.api.name)).join('\n') + `\n`;
+      inner += methods.map(v => methodOverloadsToString(padding, v, allPropertiesNames, eventsEnumName, this.api.name)).join('\n') + `\n`;
     }
     let ext = '';
     if (WRITE_INHERITANCE_OF_CLASSES && this.api.extends) {
