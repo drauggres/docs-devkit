@@ -1,6 +1,6 @@
 const common = require('../lib/common.js');
 const GENERATE_TYPES_FOR_EVENTS = true;
-const WRITE_INHERITANCE_OF_CLASSES = false;
+const WRITE_INHERITANCE_OF_CLASSES = true;
 
 const knownInterfaces = [
   'String',
@@ -164,11 +164,14 @@ function methodOverloadsToString(pad, method, allPropertiesNames, eventsEnumName
 function methodToString(pad, method, allPropertiesNames, eventsEnumName, thisName) {
   if (GENERATE_TYPES_FOR_EVENTS && eventsEnumName) {
     if (method.name === 'addEventListener') {
-      return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, callback: (this: ${thisName}, ...args: any[]) => any): void;`;
+      return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, callback: (this: ${thisName}, ...args: any[]) => any): void;\n` +
+          `${pad}${method.name}(name: string,  callback: (this: ${thisName}, ...args: any[]) => any): void;`;
     } else if (method.name === 'removeEventListener') {
-      return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, callback: (...args: any[]) => any): void;`;
+      return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, callback: (...args: any[]) => any): void;\n` +
+          `${pad}${method.name}(name: string, callback: (...args: any[]) => any): void;`;
     } else if (method.name === 'fireEvent') {
-      return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, ...args: any[]): void;`;
+      return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, ...args: any[]): void;\n` +
+          `${pad}${method.name}(name: string, ...args: any[]): void;`;
     }
   }
   const args = methodArgumentsToString(method.parameters).join(', ');
