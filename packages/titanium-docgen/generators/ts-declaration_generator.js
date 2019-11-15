@@ -286,19 +286,18 @@ class Block {
   }
   formatNamespace() {
     let inner = this.childBlocks.map(block => block.toString()).join('');
-    if (this === this._global) {
-      return  inner;
-    }
     this.prepareExcludes();
-    const padding = `${this._padding}\t`;
     const methods = Object.values(this.api.methods);
     const properties = Object.values(this.api.properties);
+    const isGlobal = this === this._global;
+    const padding = isGlobal ? '' : `${this._padding}\t`;
+    const declare = isGlobal ? 'declare ': '';
 
     if (methods.length) {
       inner = excludesToString(padding, this.all_excludes['methods'], 'const ') +
           methods.map(v => {
             const args = methodArgumentsToString(v.parameters).join(', ');
-            return `${padding}function ${v.name}(${args}): ${methodResultToString(v)};`
+            return `${padding}${declare}function ${v.name}(${args}): ${methodResultToString(v)};`
           }).join('\n') + '\n' + inner;
     }
     if (properties.length) {
@@ -309,7 +308,7 @@ class Block {
             if (v.permission === 'read-only') {
               prefix = 'const';
             }
-            const result = `${prefix} ${v.name}: ${getType(v.type)};`;
+            const result = `${declare}${prefix} ${v.name}: ${getType(v.type)};`;
             if (v.name === 'R' && (apiName === 'Titanium.Android' || apiName === 'Titanium.App.Android')) {
               return `${padding}// Skip. Redeclare block-scoped variable.\n${padding}//${result}`;
             }
@@ -317,6 +316,9 @@ class Block {
           }).join('\n') + '\n' + inner;
     }
 
+    if (isGlobal) {
+      return  inner;
+    }
     return `${this._padding}${this._inGlobal ? 'declare ': ''}namespace ${this._baseName} {\n${inner}${this._padding}}\n`
   }
   prepareExcludes() {
