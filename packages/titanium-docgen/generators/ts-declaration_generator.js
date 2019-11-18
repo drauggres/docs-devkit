@@ -283,11 +283,18 @@ class Block {
 			}
 		}
 		let dec = '';
+		let result = '';
 		let classOrInterface = 'class';
+		let baseName = this._baseName;
 		if (this._inGlobal) {
 			dec = 'declare ';
-			if (knownInterfaces.includes(this._baseName)) {
+			if (knownInterfaces.includes(baseName)) {
 				classOrInterface = 'interface';
+			}
+			if (baseName === 'console') {
+				baseName = 'Console';
+				classOrInterface = 'interface';
+				result += `${dec}var console: ${baseName};\n`;
 			}
 			if (this.api.__subtype === 'pseudo' && !this.api.__creatable) {
 				classOrInterface = 'interface';
@@ -309,7 +316,7 @@ class Block {
 			ext = `extends ${this.api.extends} `;
 		}
 
-		let result = `${this._padding}${dec}${classOrInterface} ${this._baseName} ${ext}{\n${inner}${this._padding}}\n`;
+		result += `${this._padding}${dec}${classOrInterface} ${baseName} ${ext}{\n${inner}${this._padding}}\n`;
 		if (eventInterface) {
 			result = eventInterface + result;
 		}
