@@ -17,12 +17,17 @@ function writeDefinitions(version, d) {
 
 type Dictionary<T> = Partial<Omit<T, Extract<keyof T, Function>>>
 
+interface ProxyEventMap {}
+
 ${d}
 import Ti = Titanium;
 `;
 }
 
 function getType(type) {
+	if (typeof type === 'undefined') {
+		return 'number /* #Error. #Undefined type  */';
+	}
 	if (typeof type === 'string') {
 		if (type.includes('2DMatrix')) {
 			type = type.replace('2DMatrix', 'Matrix2D');
@@ -58,6 +63,8 @@ function getType(type) {
 				return Object.values(type).map(v => getType(v)).join('|');
 			} else if (type.startsWith('Callback')) {
 				return type.replace(/^Callback<(.*)>$/, formatCallback);
+			} else if (type === 'Array') {
+				return 'number[] /* #Error. #Untyped array  */';
 			} else {
 				return type;
 			}
@@ -122,7 +129,7 @@ function propertyToString(pad, property, allMethodsNames, classOrInterface) {
 		opt ? '?' : ''}: ${getType(property.type)};`;
 }
 
-function methodOverloadsToString(pad, method, allPropertiesNames, eventsEnumName, thisName) {
+function methodOverloadsToString(pad, method, allPropertiesNames, eventsInterfaceName, thisName) {
 	if (method.deprecated && method.deprecated.removed) {
 		return formatRemoved(pad, method, allPropertiesNames.includes(method.name));
 	}
@@ -155,22 +162,22 @@ function methodOverloadsToString(pad, method, allPropertiesNames, eventsEnumName
 		}
 	}
 	if (modifiedArguments) {
-		result += `//${pad}#Suspicious method arguments\n`;
+		result += `${pad}// #Error #Suspicious method arguments. Optional argument is not the last\n`;
 	}
-	result += methods.map(method => methodToString(pad, method, allPropertiesNames, eventsEnumName, thisName)).join('\n');
+	result += methods.map(method => methodToString(pad, method, allPropertiesNames, eventsInterfaceName, thisName)).join('\n');
 	return result;
 }
 
-function methodToString(pad, method, allPropertiesNames, eventsEnumName, thisName) {
-	if (GENERATE_TYPES_FOR_EVENTS && eventsEnumName) {
+function methodToString(pad, method, allPropertiesNames, eventInterfaceName, thisName) {
+	if (GENERATE_TYPES_FOR_EVENTS && eventInterfaceName) {
 		if (method.name === 'addEventListener') {
-			return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, callback: (this: ${thisName}, ...args: any[]) => any): void;\n`
+			return `${pad}${method.name}<K extends keyof ${eventInterfaceName}>(name: K, callback: (this: ${thisName}, ev: ${eventInterfaceName}[K]) => any): void;\n`
 					+ `${pad}${method.name}(name: string, callback: (this: ${thisName}, ...args: any[]) => any): void;`;
 		} else if (method.name === 'removeEventListener') {
-			return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, callback: (...args: any[]) => any): void;\n`
+			return `${pad}${method.name}<K extends keyof ${eventInterfaceName}>(name: K, callback: (this: ${thisName}, ev: ${eventInterfaceName}[K]) => any): void;\n`
 					+ `${pad}${method.name}(name: string, callback: (...args: any[]) => any): void;`;
 		} else if (method.name === 'fireEvent') {
-			return `${pad}${method.name}(name: keyof typeof ${eventsEnumName}, ...args: any[]): void;\n`
+			return `${pad}${method.name}<K extends keyof ${eventInterfaceName}>(name: K, ev: ${eventInterfaceName}[K]): void;\n`
 					+ `${pad}${method.name}(name: string, ...args: any[]): void;`;
 		}
 	}
@@ -231,22 +238,47 @@ class Block {
 
 		const allMethodsNames = methods.map(v => v.name);
 		const allPropertiesNames = properties.map(v => v.name);
-		let eventsEnum;
-		let eventsEnumName;
+		let eventInterface = '';
+		let eventInterfaceName;
 
 		let inner = '';
 
 		if (GENERATE_TYPES_FOR_EVENTS) {
 			if (this.api.events && Object.keys(this.api.events)) {
-				const events = new Set(Object.values(this.api.events).map(e => e.name));
+				const events = new Map(Object.values(this.api.events).map(e => [ e.name, e ]));
 				if (this.api.excludes && this.api.excludes.events) {
 					Object.values(this.api.excludes.events).forEach(event => events.delete(event));
 				}
 				if (events.size) {
-					eventsEnumName = `${this._baseName}Events`;
-					eventsEnum = `${this._padding}enum ${eventsEnumName} {\n`
-							+ Array.from(events).map(e => `${padding}\t'${e}'`).join(',\n')
-							+ `\n${this._padding}}\n`;
+					eventInterfaceName = 'Ti.Event';
+					const body = [];
+					events.forEach((event, name) => {
+						if (event.deprecated && event.deprecated.removed) {
+							return;
+						}
+						if (!event.properties) {
+							return;
+						}
+						const properties = Object.values(event.properties);
+						if (!properties.length) {
+							return;
+						}
+						eventInterfaceName = `${this._baseName}EventMap`;
+						const eventTypeInterfaceName = `${this._baseName}_${name.replace(':', '_')}_Event`;
+						body.push(`${padding}\t"${name}": ${eventTypeInterfaceName}`);
+						const temp = [];
+						properties.forEach(prop => {
+							temp.push(`${padding}${prop.name}: ${getType(prop.type)}`);
+						});
+						eventInterface += `${this._padding}interface ${eventTypeInterfaceName} extends Ti.Event {\n`
+								+ temp.join(',\n')
+								+ `\n${this._padding}}\n`;
+					});
+					if (eventInterfaceName !== 'Ti.Event') {
+						eventInterface += `${this._padding}interface ${eventInterfaceName} extends ProxyEventMap {\n`
+								+ body.join(',\n')
+								+ `\n${this._padding}}\n`;
+					}
 				}
 			}
 		}
@@ -270,7 +302,7 @@ class Block {
 		if (methods.length) {
 			inner += `${padding}// ${this.api.name} methods\n`;
 			inner += excludesToString(padding, this.all_excludes['methods']);
-			inner += methods.map(v => methodOverloadsToString(padding, v, allPropertiesNames, eventsEnumName, this.api.name)).join('\n') + '\n';
+			inner += methods.map(v => methodOverloadsToString(padding, v, allPropertiesNames, eventInterfaceName, this.api.name)).join('\n') + '\n';
 		}
 		let ext = '';
 		if (WRITE_INHERITANCE_OF_CLASSES && this.api.extends) {
@@ -278,8 +310,8 @@ class Block {
 		}
 
 		let result = `${this._padding}${dec}${classOrInterface} ${this._baseName} ${ext}{\n${inner}${this._padding}}\n`;
-		if (eventsEnum) {
-			result = eventsEnum + result;
+		if (eventInterface) {
+			result = eventInterface + result;
 		}
 		return result;
 	}
@@ -360,7 +392,7 @@ class Block {
 	}
 	toString() {
 		if (!isNaN(parseInt(this._baseName[0], 10)) || this._baseName === 'Dictionary') {
-			return `${this._padding}// #Skip incorrect identifier "${this._baseName}";\n`;
+			return `${this._padding}// #Error #Skip incorrect identifier "${this._baseName}";\n`;
 		}
 		let result = '';
 
