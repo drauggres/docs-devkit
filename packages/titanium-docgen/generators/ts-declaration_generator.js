@@ -15,7 +15,7 @@ function writeDefinitions(version, d) {
 // Project: https://github.com/appcelerator/titanium_mobile
 // Definitions by: Sergey Volkov <s.volkov@netris.ru>
 
-type Dictionary<T> = Partial<Omit<T, Extract<keyof T, Function>>>
+type Dictionary<T> = Partial<Pick<T, Exclude<keyof T, Extract<keyof T, Function>>>>
 
 interface ProxyEventMap {}
 
